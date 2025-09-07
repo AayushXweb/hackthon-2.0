@@ -1,17 +1,522 @@
-import React from "react";
-import ProfileCard from "./components/ProfileCard";
+import React, { useEffect, useState } from "react";
+
+/*
+  Full frontend for Students + Todos + Notes + Auth (register/login)
+  Works with backend at API_BASE (Flask app you provided).
+  - Stores authenticated user in localStorage (no JWT needed for current backend).
+  - If you later add JWT, small changes to save token and send Authorization header.
+*/
+
+const API_BASE = "https://demofornow.pythonanywhere.com"; // change to http://127.0.0.1:5000 if running locally
 
 function App() {
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
+  const [route, setRoute] = useState(user ? "dashboard" : "auth"); // auth or dashboard
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+      setRoute("dashboard");
+    } else {
+      localStorage.removeItem("user");
+      setRoute("auth");
+    }
+  }, [user]);
+
+  const logout = () => setUser(null);
+
   return (
-    <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
-      <ProfileCard
-        name="Md Kamil Kaushar Mallick"
-        role="Software Engineer"
-        avatar="data:image/jpeg;base64,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"
-        bio="Off The Track"
-      />
+    <div style={{ minHeight: "100vh", background: "#0f1724", color: "#e6eef8", fontFamily: "system-ui, sans-serif", padding: 20 }}>
+      <Header user={user} onLogout={logout} setRoute={setRoute} />
+      <div style={{ maxWidth: 1100, margin: "24px auto" }}>
+        {route === "auth" && <Auth onLogin={setUser} />}
+        {route === "dashboard" && user && <Dashboard user={user} />}
+      </div>
+      <footer style={{ textAlign: "center", marginTop: 40, color: "#98a0b3" }}>
+        built with ❤️ — connect to {API_BASE}
+      </footer>
     </div>
   );
 }
+
+/* ---------------- Header ---------------- */
+function Header({ user, onLogout, setRoute }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: 1100, margin: "0 auto" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <h1 style={{ margin: 0, fontSize: 20 }}>Samadhan 2.0</h1>
+        <div style={{ color: "#98a0b3", fontSize: 14 }}>Students · Todos · Notes</div>
+      </div>
+
+      <div>
+        {!user ? (
+          <button onClick={() => setRoute("auth")} style={buttonStyle}>Login / Register</button>
+        ) : (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ color: "#cfe8ff" }}>{user.username}</div>
+            <button onClick={onLogout} style={buttonStyle}>Logout</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Auth (Register / Login) ---------------- */
+function Auth({ onLogin }) {
+  const [tab, setTab] = useState("login"); // login | register
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 700px", gap: 24 }}>
+      <div style={{ padding: 20, borderRadius: 12, background: "#071024", minHeight: 300 }}>
+        <h2 style={{ marginTop: 0, color: "#bfe1ff" }}>Welcome</h2>
+        <p style={{ color: "#9fb6ce" }}>
+          Use register to create an account, then login. This frontend stores the user in localStorage.
+        </p>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={() => setTab("login")} style={{ ...tabButtonStyle, ...(tab === "login" ? activeTabStyle : {}) }}>Login</button>
+          <button onClick={() => setTab("register")} style={{ ...tabButtonStyle, ...(tab === "register" ? activeTabStyle : {}) }}>Register</button>
+        </div>
+      </div>
+
+      <div style={{ padding: 20, borderRadius: 12, background: "#071424" }}>
+        {tab === "login" ? <LoginForm onLogin={onLogin} /> : <RegisterForm onRegistered={(u) => { onLogin(u); }} />}
+      </div>
+    </div>
+  );
+}
+
+function RegisterForm({ onRegistered }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState(null);
+
+  const register = async () => {
+    setStatus(null);
+    if (!username.trim() || !password.trim()) return setStatus({ error: "username & password required" });
+    try {
+      const res = await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatus({ ok: data.message || "Registered" });
+        // automatically login after register (call login endpoint)
+        const loginRes = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const loginData = await loginRes.json();
+        if (loginRes.ok) {
+          onRegistered(loginData.user || { username });
+        }
+      } else {
+        setStatus({ error: data.error || "Registration failed" });
+      }
+    } catch (err) {
+      setStatus({ error: "Network error" });
+    }
+  };
+
+  return (
+    <div>
+      <h3 style={{ marginTop: 0 }}>Register</h3>
+      <Input label="Username" value={username} onChange={setUsername} />
+      <Input label="Password" type="password" value={password} onChange={setPassword} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={register} style={primaryButton}>Register</button>
+      </div>
+      <StatusBox status={status} />
+    </div>
+  );
+}
+
+function LoginForm({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState(null);
+
+  const login = async () => {
+    setStatus(null);
+    if (!username.trim() || !password.trim()) return setStatus({ error: "username & password required" });
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onLogin(data.user || { username });
+      } else {
+        setStatus({ error: data.error || "Login failed" });
+      }
+    } catch (err) {
+      setStatus({ error: "Network error" });
+    }
+  };
+
+  return (
+    <div>
+      <h3 style={{ marginTop: 0 }}>Login</h3>
+      <Input label="Username" value={username} onChange={setUsername} />
+      <Input label="Password" type="password" value={password} onChange={setPassword} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={login} style={primaryButton}>Login</button>
+      </div>
+      <StatusBox status={status} />
+    </div>
+  );
+}
+
+/* ---------------- Dashboard ---------------- */
+function Dashboard({ user }) {
+  const [tab, setTab] = useState("students"); // students | todos | notes
+  return (
+    <div>
+      <nav style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setTab("students")} style={{ ...navButton, ...(tab === "students" ? navActive : {}) }}>Students</button>
+        <button onClick={() => setTab("todos")} style={{ ...navButton, ...(tab === "todos" ? navActive : {}) }}>Todos</button>
+        <button onClick={() => setTab("notes")} style={{ ...navButton, ...(tab === "notes" ? navActive : {}) }}>Notes</button>
+      </nav>
+
+      <div>
+        {tab === "students" && <StudentsPanel />}
+        {tab === "todos" && <TodosPanel />}
+        {tab === "notes" && <NotesPanel />}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Students Panel ---------------- */
+function StudentsPanel() {
+  const [students, setStudents] = useState([]);
+  const [name, setName] = useState("");
+  const [course, setCourse] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/students`);
+      const data = await res.json();
+      setStudents(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => { fetchStudents(); }, []);
+
+  const add = async () => {
+    if (!name.trim() || !course.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, course }),
+      });
+      if (res.ok) {
+        const newS = await res.json();
+        setStudents((s) => [...s, newS]);
+        setName(""); setCourse("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const startEdit = (s) => { setEditing(s); setName(s.name); setCourse(s.course); };
+  const saveEdit = async () => {
+    if (!editing) return;
+    try {
+      const res = await fetch(`${API_BASE}/students/${editing.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, course }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setStudents((arr) => arr.map((x) => x.id === updated.id ? updated : x));
+        setEditing(null); setName(""); setCourse("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Delete student?")) return;
+    try {
+      await fetch(`${API_BASE}/students/${id}`, { method: "DELETE" });
+      setStudents((arr) => arr.filter((s) => s.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h3>Students</h3>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input placeholder="Name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+        <input placeholder="Course" value={course} onChange={e => setCourse(e.target.value)} style={inputStyle} />
+        {editing ? (
+          <>
+            <button onClick={saveEdit} style={primaryButton}>Save</button>
+            <button onClick={() => { setEditing(null); setName(""); setCourse(""); }} style={mutedButton}>Cancel</button>
+          </>
+        ) : (
+          <button onClick={add} style={primaryButton}>Add</button>
+        )}
+        <button onClick={fetchStudents} style={mutedButton}>Refresh</button>
+      </div>
+
+      <div>
+        {students.length === 0 ? <div style={{ color: "#94a3b8" }}>No students yet</div> :
+          students.map(s => (
+            <div key={s.id} style={rowStyle}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{s.name}</div>
+                <div style={{ color: "#94a3b8" }}>{s.course}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => startEdit(s)} style={smallButton}>Edit</button>
+                <button onClick={() => del(s.id)} style={{ ...smallButton, background: "#ff6b6b" }}>Delete</button>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Todos Panel ---------------- */
+function TodosPanel() {
+  const [todos, setTodos] = useState([]);
+  const [title, setTitle] = useState("");
+
+  const fetchTodos = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/todos`);
+      const data = await res.json();
+      setTodos(data);
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => { fetchTodos(); }, []);
+
+  const add = async () => {
+    if (!title.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) {
+        const newT = await res.json();
+        setTodos((t) => [...t, newT]);
+        setTitle("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const toggle = async (todo) => {
+    try {
+      const res = await fetch(`${API_BASE}/todos/${todo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: todo.title, completed: !todo.completed }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTodos((arr) => arr.map((t) => t.id === updated.id ? updated : t));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Delete todo?")) return;
+    try {
+      await fetch(`${API_BASE}/todos/${id}`, { method: "DELETE" });
+      setTodos((arr) => arr.filter((t) => t.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h3>Todos</h3>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input placeholder="New todo..." value={title} onChange={e => setTitle(e.target.value)} style={inputStyle} onKeyDown={(e)=> e.key==="Enter" && add()} />
+        <button onClick={add} style={primaryButton}>Add</button>
+        <button onClick={fetchTodos} style={mutedButton}>Refresh</button>
+      </div>
+
+      <div>
+        {todos.length === 0 ? <div style={{ color: "#94a3b8" }}>No todos yet</div> :
+          todos.map(t => (
+            <div key={t.id} style={{ ...rowStyle, alignItems: "center" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
+                <input type="checkbox" checked={t.completed} onChange={() => toggle(t)} />
+                <div style={{ textDecoration: t.completed ? "line-through" : "none" }}>{t.title}</div>
+              </label>
+              <div>
+                <button onClick={() => del(t.id)} style={{ ...smallButton, background: "#ff6b6b" }}>Delete</button>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Notes Panel ---------------- */
+function NotesPanel() {
+  const [notes, setNotes] = useState([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const fetchNotes = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/notes`);
+      const data = await res.json();
+      setNotes(data);
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => { fetchNotes(); }, []);
+
+  const add = async () => {
+    if (!title.trim() || !content.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      if (res.ok) {
+        const newN = await res.json();
+        setNotes((n) => [...n, newN]);
+        setTitle(""); setContent("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const startEdit = (n) => { setEditing(n); setTitle(n.title); setContent(n.content); };
+  const saveEdit = async () => {
+    if (!editing) return;
+    try {
+      const res = await fetch(`${API_BASE}/notes/${editing.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setNotes((arr) => arr.map((x) => x.id === updated.id ? updated : x));
+        setEditing(null); setTitle(""); setContent("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Delete note?")) return;
+    try {
+      await fetch(`${API_BASE}/notes/${id}`, { method: "DELETE" });
+      setNotes((arr) => arr.filter((n) => n.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h3>Notes</h3>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} style={inputStyle} />
+        <input placeholder="Content" value={content} onChange={e => setContent(e.target.value)} style={inputStyle} />
+        {editing ? (
+          <>
+            <button onClick={saveEdit} style={primaryButton}>Save</button>
+            <button onClick={() => { setEditing(null); setTitle(""); setContent(""); }} style={mutedButton}>Cancel</button>
+          </>
+        ) : (
+          <button onClick={add} style={primaryButton}>Add</button>
+        )}
+        <button onClick={fetchNotes} style={mutedButton}>Refresh</button>
+      </div>
+
+      <div>
+        {notes.length === 0 ? <div style={{ color: "#94a3b8" }}>No notes yet</div> :
+          notes.map(n => (
+            <div key={n.id} style={{ ...rowStyle, flexDirection: "column", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{n.title}</div>
+                  <div style={{ color: "#94a3b8" }}>{n.content}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => startEdit(n)} style={smallButton}>Edit</button>
+                  <button onClick={() => del(n.id)} style={{ ...smallButton, background: "#ff6b6b" }}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- UI Helpers & Styles ---------------- */
+const Input = ({ label, type = "text", value, onChange }) => (
+  <div style={{ marginBottom: 8 }}>
+    <div style={{ fontSize: 13, color: "#98a0b3", marginBottom: 6 }}>{label}</div>
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      type={type}
+      style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "#081327", color: "#e6eef8" }}
+    />
+  </div>
+);
+
+const StatusBox = ({ status }) => {
+  if (!status) return null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      {status.error && <div style={{ color: "#ffb4b4" }}>{status.error}</div>}
+      {status.ok && <div style={{ color: "#b5f3a8" }}>{status.ok}</div>}
+    </div>
+  );
+};
+
+const buttonStyle = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "#1f6feb",
+  color: "#fff",
+  cursor: "pointer",
+};
+
+const primaryButton = { ...buttonStyle, fontWeight: 700 };
+const mutedButton = { padding: "8px 12px", borderRadius: 8, border: "none", background: "#253241", color: "#c6d3e6", cursor: "pointer" };
+const tabButtonStyle = { padding: "8px 12px", borderRadius: 8, border: "none", background: "#0b2840", color: "#9fb6ce", cursor: "pointer" };
+const activeTabStyle = { background: "#124a78", color: "#e8f7ff" };
+
+const panelStyle = { padding: 16, borderRadius: 12, background: "#071026" };
+const inputStyle = { flex: 1, padding: 10, borderRadius: 8, border: "none", background: "#081327", color: "#e6eef8" };
+const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", marginBottom: 10, borderRadius: 10, background: "#051428" };
+const smallButton = { padding: "6px 10px", borderRadius: 8, border: "none", background: "#1f6feb", color: "#fff", cursor: "pointer" };
+const navButton = { padding: "8px 12px", borderRadius: 8, border: "none", background: "#071a2a", color: "#98a0b3", cursor: "pointer" };
+const navActive = { background: "#0f4f8a", color: "#e6f6ff" };
 
 export default App;
